@@ -6,7 +6,7 @@
 typedef struct
 {
 	char *phrase;
-	u32 length;
+	size_t length;
 } phrase_t;
 
 static void
@@ -53,8 +53,8 @@ handle_block(char *start, size_t length,
 
 	for (u32 i = 0; i < num_phrases; ++i)
 	{
-		const char *phrase = phrases[i].phrase;
-		u32 phrase_length  = phrases[i].length;
+		const char *phrase   = phrases[i].phrase;
+		size_t phrase_length = phrases[i].length;
 
 		size_t buf_remain = length;
 		sz_cptr_t buf     = start;
@@ -158,9 +158,7 @@ main(int argc, const char **argv)
 	// of the previous read.
 	//
 	char *buffer_real = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE * 2, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-
-	char *buffer          = buffer_real + FILE_BUFFER_SIZE;
-	char *leftover_buffer = buffer_real;
+	char *buffer      = buffer_real + FILE_BUFFER_SIZE;
 
 	u64 line_count   = 0;
 	u64 bytes_parsed = 0;

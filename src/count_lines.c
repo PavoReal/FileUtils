@@ -74,8 +74,6 @@ main(int argc, const char **argv)
 
 	char *buffer = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-	const char *newline_str = "\n";
-
 	u64 line_count   = 0;
 	u64 bytes_parsed = 0;
 

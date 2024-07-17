@@ -25,6 +25,7 @@ typedef double f64;
 
 #pragma warning(push)
 #pragma warning(disable: 4068)
+#pragma warning(disable: 4146)
 #include "common/stringzilla.h"
 #pragma warning(pop)
 
