@@ -2250,36 +2250,57 @@ SZ_PUBLIC sz_cptr_t sz_find_serial(sz_cptr_t h, sz_size_t h_length, sz_cptr_t n,
     // This almost never fires, but it's better to be safe than sorry.
     if (h_length < n_length || !n_length) return SZ_NULL_CHAR;
 
-#if SZ_DETECT_BIG_ENDIAN
-    sz_find_t backends[] = {
-        (sz_find_t)sz_find_byte_serial,
-        (sz_find_t)_sz_find_horspool_upto_256bytes_serial,
-        (sz_find_t)_sz_find_horspool_over_256bytes_serial,
-    };
 
-    return backends[(n_length > 1) + (n_length > 256)](h, h_length, n, n_length);
-#else
-    sz_find_t backends[] = {
-        // For very short strings brute-force SWAR makes sense.
-        (sz_find_t)sz_find_byte_serial,
-        (sz_find_t)_sz_find_2byte_serial,
-        (sz_find_t)_sz_find_3byte_serial,
-        (sz_find_t)_sz_find_4byte_serial,
-        // To avoid constructing the skip-table, let's use the prefixed approach.
-        (sz_find_t)_sz_find_over_4bytes_serial,
-        // For longer needles - use skip tables.
-        (sz_find_t)_sz_find_horspool_upto_256bytes_serial,
-        (sz_find_t)_sz_find_horspool_over_256bytes_serial,
-    };
+    for (size_t i = 0; i < h_length - n_length; ++i)
+    {
+        size_t j;
 
-    return backends[
-        // For very short strings brute-force SWAR makes sense.
-        (n_length > 1) + (n_length > 2) + (n_length > 3) +
-        // To avoid constructing the skip-table, let's use the prefixed approach.
-        (n_length > 4) +
-        // For longer needles - use skip tables.
-        (n_length > 8) + (n_length > 256)](h, h_length, n, n_length);
-#endif
+        for (j = 0; j < n_length; ++j)
+        {
+            if (h[i + j] != n[j])
+            {
+                break;
+            }
+        }
+
+        if (j == n_length)
+        {
+            return h + i;
+        }
+    }
+
+    return SZ_NULL_CHAR;
+
+// #if SZ_DETECT_BIG_ENDIAN
+//     sz_find_t backends[] = {
+//         (sz_find_t)sz_find_byte_serial,
+//         (sz_find_t)_sz_find_horspool_upto_256bytes_serial,
+//         (sz_find_t)_sz_find_horspool_over_256bytes_serial,
+//     };
+
+//     return backends[(n_length > 1) + (n_length > 256)](h, h_length, n, n_length);
+// #else
+//     sz_find_t backends[] = {
+//         // For very short strings brute-force SWAR makes sense.
+//         (sz_find_t)     ,
+//         (sz_find_t)_sz_find_2byte_serial,
+//         (sz_find_t)_sz_find_3byte_serial,
+//         (sz_find_t)_sz_find_4byte_serial,
+//         // To avoid constructing the skip-table, let's use the prefixed approach.
+//         (sz_find_t)_sz_find_over_4bytes_serial,
+//         // For longer needles - use skip tables.
+//         (sz_find_t)_sz_find_horspool_upto_256bytes_serial,
+//         (sz_find_t)_sz_find_horspool_over_256bytes_serial,
+//     };
+
+//     return backends[
+//         // For very short strings brute-force SWAR makes sense.
+//         (n_length > 1) + (n_length > 2) + (n_length > 3) +
+//         // To avoid constructing the skip-table, let's use the prefixed approach.
+//         (n_length > 4) +
+//         // For longer needles - use skip tables.
+//         (n_length > 8) + (n_length > 256)](h, h_length, n, n_length);
+// #endif
 }
 
 SZ_PUBLIC sz_cptr_t sz_rfind_serial(sz_cptr_t h, sz_size_t h_length, sz_cptr_t n, sz_size_t n_length) {

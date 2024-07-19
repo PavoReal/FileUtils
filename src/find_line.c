@@ -1,7 +1,6 @@
 #include "common/common.c"
 
 #define FILE_BUFFER_SIZE (MEGABYTES(5))
-#define MAX_PHRASE_COUNT (64)
 
 typedef struct
 {
@@ -13,7 +12,7 @@ static void
 print_about(const char **argv)
 {
 	printf("Invalid usage\n"
-		"%s: file <phrases>\nMin number of phrases is 1, max number is %d\n", argv[0], MAX_PHRASE_COUNT);
+		"%s: file <phrases>\nMust supply at least one phrase", argv[0]);
 }
 
 u64
@@ -45,7 +44,8 @@ count_lines_in_block(char *block, size_t block_size)
 }
 
 size_t
-handle_block(char *start, size_t length, 
+handle_block_match_whole_line(char *start, size_t length, 
+			 char *overflow_start, size_t overflow_length,
 	         phrase_t *phrases, size_t num_phrases, 
 	         u64 starting_line_count)
 {
@@ -73,7 +73,7 @@ handle_block(char *start, size_t length,
 
 			size_t up_to_line_count = count_lines_in_block(start, line_end - buf + 1);
 
-			printf("\nMATCH! %.*s on line %zu\n", (int) line_length - 1, phrase_start + 1, starting_line_count + up_to_line_count);
+			printf("\nMATCH! '%.*s' on line %zu\n", (int) line_length - 1, phrase_start + 1, starting_line_count + up_to_line_count);
 			
 			buf = line_end;
 			buf_remain = length - (buf - start);
@@ -86,8 +86,10 @@ handle_block(char *start, size_t length,
 
 	if (last_newline != NULL)
 	{
-		leftover_size = (length - (last_newline - start));
-		sz_copy_avx2(start - leftover_size, last_newline, leftover_size);
+		leftover_size = (start + length) - last_newline;
+		leftover_size = leftover_size > overflow_length ? overflow_length : leftover_size;
+
+		sz_copy_avx2(overflow_start + overflow_length - leftover_size, last_newline, leftover_size);
 	}
 
 	return leftover_size;
@@ -96,7 +98,7 @@ handle_block(char *start, size_t length,
 int 
 main(int argc, const char **argv)
 {
-	if (argc < 3 || argc > MAX_PHRASE_COUNT + 2)
+	if (argc < 3)
 	{
 		print_about(argv);
 		return 1;
@@ -118,7 +120,7 @@ main(int argc, const char **argv)
 	if (file_handle == INVALID_HANDLE_VALUE)
 	{
 		fprintf(stderr, "(fatal: could not open file %s)\n", file_path);
-		exit(1);
+		return 1;
 	}
 
 	//
@@ -130,13 +132,14 @@ main(int argc, const char **argv)
 
 	u64 file_size = ((uint64_t) file_size_upper_bits << (sizeof(file_size_lower_bits) * 8)) + (uint64_t) file_size_lower_bits;
 
+	printf("(searching %s)\n", file_path);
 	printf("(file size is %lf GB)\n", ((double) file_size / (double) GIGABYTES(1)));
 
 	//
 	// Assemble phrases
 	//
-	phrase_t phrases[MAX_PHRASE_COUNT];
-	u32 phrase_count = argc - 2;
+	size_t phrase_count = argc - 2;
+	phrase_t *phrases   = (phrase_t*) VirtualAlloc(0, sizeof(phrase_t) * phrase_count, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
 	for (u32 i = 0; i < phrase_count; ++i)
 	{
@@ -157,23 +160,25 @@ main(int argc, const char **argv)
 	// The second half of the buffer is the new FILE_BUFFER_SIZE from the file. The first half is handling last line
 	// of the previous read.
 	//
-	char *buffer_real = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE * 2, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	char *buffer      = buffer_real + FILE_BUFFER_SIZE;
+	char *buffer_real     = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE * 2, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	char *buffer          = buffer_real + FILE_BUFFER_SIZE;
+	char *leftover_buffer = buffer_real;
 
 	u64 line_count   = 0;
 	u64 bytes_parsed = 0;
+
+	u64 read_time  = 0;
+	u64 think_time = 0;
 
 	u64 print_bytes_parsed = 0;
 	u64 print_time_elapsed = 0;
 
 	size_t leftover_block_size = 0;
 
-#if defined(DEBUG)
-	u64 setup_time_elapsed = read_os_timer() - program_start_time;
-	double setup_time_ms   =  (double) (setup_time_elapsed * 1000) / (double) timer_freq;
-
-	printf("(setup took %lf ms)\n", setup_time_ms);
-#endif
+	leftover_buffer[0] = 0xff;
+	leftover_buffer[FILE_BUFFER_SIZE - 1] = 0xff;
+	buffer[0] = 0xee;
+	buffer[FILE_BUFFER_SIZE - 1] = 0xee;
 
 	do
 	{
@@ -181,6 +186,8 @@ main(int argc, const char **argv)
 
 		DWORD bytes_read = 0;
 		BOOL read_status = ReadFile(file_handle, buffer, FILE_BUFFER_SIZE, &bytes_read, NULL);
+
+		u64 read_end_time = read_os_timer();
 
 		if (!read_status)
 		{
@@ -193,23 +200,39 @@ main(int argc, const char **argv)
 
 		char *virtual_buffer = buffer - leftover_block_size;
 
-		leftover_block_size = handle_block(virtual_buffer, bytes_read + leftover_block_size, phrases, phrase_count, line_count);
+		leftover_block_size = handle_block_match_whole_line(virtual_buffer, bytes_read + leftover_block_size, 
+			                                                leftover_buffer, FILE_BUFFER_SIZE,
+			                                                phrases, phrase_count, 
+			                                                line_count);
+
 		line_count += count_lines_in_block(buffer, bytes_read);
 
-		bytes_parsed += bytes_read;
+		bytes_parsed       += bytes_read;
+		print_bytes_parsed += bytes_read;
 
 		u64 block_end     = read_os_timer();
 		u64 block_elapsed = block_end - block_start;
 
 		print_time_elapsed += block_elapsed;
-		print_bytes_parsed += bytes_read;
-
-		if (print_bytes_parsed >= MEGABYTES(50))
+		if (print_time_elapsed >= (timer_freq / 5))
 		{
-			double mb_per_sec  = ((double) print_bytes_parsed / (double) MEGABYTES(1)) / (print_time_elapsed / (double) timer_freq);
-			double total_speed = ((double) bytes_parsed / (double) MEGABYTES(1)) / ((block_end - program_start_time) / (double) timer_freq);
+			double mb_per_sec  = ((double) print_bytes_parsed / (double) MEGABYTES(1)) / (print_time_elapsed               / (double) timer_freq);
+			double total_speed = ((double) bytes_parsed       / (double) MEGABYTES(1)) / ((block_end - program_start_time) / (double) timer_freq);
 
-			printf("\033[2K\r(current speed %lf MB/s, overall average %lf MB/s)", mb_per_sec, total_speed);
+			double eta_in_sec  = ((double) (file_size - bytes_parsed) / (double) MEGABYTES(1)) / mb_per_sec;
+
+			double gb_parsed = ((double) bytes_parsed / (double) GIGABYTES(1));
+			double read_precent = ((double) bytes_parsed / (double) file_size) * 100;
+
+			u64 read_elpased = (read_end_time - block_start);
+
+			read_time  += read_elpased;
+			think_time += (block_elapsed - read_elpased);
+
+			double read_process_ratio = ((double) read_time / (double) think_time);
+
+			// printf("\033[2K\r(searched %lf GB, current speed %lf MB/s, overall average %lf MB/s, eta in %.02lfs)", ((double) bytes_parsed / (double) GIGABYTES(1)), mb_per_sec, total_speed, eta_in_sec);
+			printf("\033[2K\r(searched %lf GB (%.02lf%%), current %lf MB/s, average %lf MB/s, eta in %.00lfs, read/process ratio %.02lf)", gb_parsed, read_precent, mb_per_sec, total_speed, eta_in_sec, read_process_ratio);
 
 			print_time_elapsed = 0;
 			print_bytes_parsed = 0;
@@ -231,6 +254,7 @@ main(int argc, const char **argv)
 	{
 		VirtualFree(phrases[i].phrase, 0, MEM_RELEASE);
 	}
+	VirtualFree(phrases, 0, MEM_RELEASE);
 
 	CloseHandle(file_handle);
 

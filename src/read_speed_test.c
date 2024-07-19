@@ -9,34 +9,6 @@ print_about(const char **argv)
 		"%s: file\n", argv[0]);
 }
 
-u64
-handle_block(char *block, size_t block_size)
-{
-	const char *newline_str = "\n";
-
-	size_t buf_remain = block_size;
-	sz_cptr_t buf     = block;
-
-	u64 newline_count = 0;
-
-	while (buf_remain)
-	{
-		sz_cptr_t found_newline = sz_find_byte_avx2(buf, buf_remain, newline_str);
-
-		if (found_newline == NULL)
-		{
-			break;
-		}
-
-		newline_count += 1;
-
-		buf = found_newline + 1;
-		buf_remain = block_size - (buf - block);
-	}
-
-	return newline_count;
-}
-
 int 
 main(int argc, const char **argv)
 {
@@ -77,9 +49,6 @@ main(int argc, const char **argv)
 	u64 line_count   = 0;
 	u64 bytes_parsed = 0;
 
-	u64 read_time  = 0;
-	u64 think_time = 0;
-
 	u64 print_bytes_parsed = 0;
 	u64 print_time_elapsed = 0;
 
@@ -101,7 +70,7 @@ main(int argc, const char **argv)
 			break;
 		}
 
-		line_count += handle_block(buffer, bytes_read);
+		// line_count += handle_block(buffer, bytes_read);
 
 		bytes_parsed       += bytes_read;
 		print_bytes_parsed += bytes_read;
@@ -121,12 +90,10 @@ main(int argc, const char **argv)
 			double gb_parsed = ((double) bytes_parsed / (double) GIGABYTES(1));
 			double read_precent = ((double) bytes_parsed / (double) file_size) * 100;
 
-			u64 read_elpased = (read_end_time - block_start);
+			u64 read_elpased    = read_end_time - block_start;
+			u64 process_elapsed = block_elapsed - read_elpased;
 
-			read_time  += read_elpased;
-			think_time += (block_elapsed - read_elpased);
-
-			double read_process_ratio = ((double) read_time / (double) think_time);
+			double read_process_ratio = ((double) read_elpased / (double) process_elapsed);
 
 			// printf("\033[2K\r(searched %lf GB, current speed %lf MB/s, overall average %lf MB/s, eta in %.02lfs)", ((double) bytes_parsed / (double) GIGABYTES(1)), mb_per_sec, total_speed, eta_in_sec);
 			printf("\033[2K\r(searched %lf GB (%.02lf%%), current %lf MB/s, average %lf MB/s, eta in %.00lfs, read/process ratio %.02lf)", gb_parsed, read_precent, mb_per_sec, total_speed, eta_in_sec, read_process_ratio);
