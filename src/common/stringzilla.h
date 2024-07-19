@@ -2271,6 +2271,11 @@ SZ_PUBLIC sz_cptr_t sz_find_serial(sz_cptr_t h, sz_size_t h_length, sz_cptr_t n,
 
     return SZ_NULL_CHAR;
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // NOTE(Garrison): There's a bug somewhere here so I rewrote it
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 // #if SZ_DETECT_BIG_ENDIAN
 //     sz_find_t backends[] = {
 //         (sz_find_t)sz_find_byte_serial,
