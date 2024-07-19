@@ -150,15 +150,17 @@ main(int argc, const char **argv)
 
 		phrases[i].phrase = (char*) VirtualAlloc(0, phrases[i].length + 2, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 		sz_copy_avx2(phrases[i].phrase + 1, phrase_raw, phrases[i].length);
-		phrases[i].phrase[0]                 = '\n';
+
+		phrases[i].phrase[0]                     = '\n';
 		phrases[i].phrase[phrases[i].length + 1] = '\n';
+
 		phrases[i].length += 2;
 	}
 
 	//
 	// Alloc buffer
-	// The second half of the buffer is the new FILE_BUFFER_SIZE from the file. The first half is handling last line
-	// of the previous read.
+	// The second half of the buffer is used to hold our current file read. The first half contains the dangingling
+	// last line of the previous buffer
 	//
 	char *buffer_real     = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE * 2, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 	char *buffer          = buffer_real + FILE_BUFFER_SIZE;
@@ -174,11 +176,6 @@ main(int argc, const char **argv)
 	u64 print_time_elapsed = 0;
 
 	size_t leftover_block_size = 0;
-
-	leftover_buffer[0] = 0xff;
-	leftover_buffer[FILE_BUFFER_SIZE - 1] = 0xff;
-	buffer[0] = 0xee;
-	buffer[FILE_BUFFER_SIZE - 1] = 0xee;
 
 	do
 	{
