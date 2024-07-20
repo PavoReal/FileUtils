@@ -1,4 +1,4 @@
-static u64 
+inline static u64 
 get_os_timer_freq()
 {
 	LARGE_INTEGER freq;
@@ -7,7 +7,7 @@ get_os_timer_freq()
 	return freq.QuadPart;
 }
 
-static u64 
+inline static u64 
 read_os_timer()
 {
 	LARGE_INTEGER value;

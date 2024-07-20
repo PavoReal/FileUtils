@@ -15,34 +15,6 @@ print_about(const char **argv)
 		"%s: file <phrases>\nMust supply at least one phrase", argv[0]);
 }
 
-u64
-count_lines_in_block(char *block, size_t block_size)
-{
-	const char *newline_str = "\n";
-
-	size_t buf_remain = block_size;
-	sz_cptr_t buf     = block;
-
-	u64 newline_count = 0;
-
-	while (buf_remain)
-	{
-		sz_cptr_t found_newline = sz_find_byte_avx2(buf, buf_remain, newline_str);
-
-		if (found_newline == NULL)
-		{
-			break;
-		}
-
-		newline_count += 1;
-
-		buf = found_newline + 1;
-		buf_remain = block_size - (buf - block);
-	}
-
-	return newline_count;
-}
-
 size_t
 handle_block_match_whole_line(char *start, size_t length, 
 			 char *overflow_start, size_t overflow_length,
@@ -71,7 +43,7 @@ handle_block_match_whole_line(char *start, size_t length,
 			sz_cptr_t line_end = sz_find_byte_avx2(phrase_start + 1, length - (phrase_start - start), newline_str);
 			size_t line_length = line_end - phrase_start;
 
-			size_t up_to_line_count = count_lines_in_block(start, line_end - buf + 1);
+			size_t up_to_line_count = count_byte_in_block(start, line_end - buf + 1, newline_str);
 
 			printf("\nMATCH! '%.*s' on line %zu\n", (int) line_length - 1, phrase_start + 1, starting_line_count + up_to_line_count);
 			
@@ -122,17 +94,9 @@ main(int argc, const char **argv)
 		fprintf(stderr, "(fatal: could not open file %s)\n", file_path);
 		return 1;
 	}
-
-	//
-	// Calculate file size
-	//
-
-	DWORD file_size_upper_bits = 0;
-	DWORD file_size_lower_bits = GetFileSize(file_handle, &file_size_upper_bits);
-
-	u64 file_size = ((uint64_t) file_size_upper_bits << (sizeof(file_size_lower_bits) * 8)) + (uint64_t) file_size_lower_bits;
-
 	printf("(searching %s)\n", file_path);
+
+	u64 file_size = get_file_size(file_handle);
 	printf("(file size is %lf GB)\n", ((double) file_size / (double) GIGABYTES(1)));
 
 	//
@@ -165,6 +129,8 @@ main(int argc, const char **argv)
 	char *buffer_real     = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE * 2, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 	char *buffer          = buffer_real + FILE_BUFFER_SIZE;
 	char *leftover_buffer = buffer_real;
+
+	const char *newline_str = "\n";
 
 	u64 line_count   = 0;
 	u64 bytes_parsed = 0;
@@ -202,7 +168,7 @@ main(int argc, const char **argv)
 			                                                phrases, phrase_count, 
 			                                                line_count);
 
-		line_count += count_lines_in_block(buffer, bytes_read);
+		line_count += count_byte_in_block(buffer, bytes_read, newline_str);
 
 		bytes_parsed       += bytes_read;
 		print_bytes_parsed += bytes_read;

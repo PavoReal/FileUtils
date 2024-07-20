@@ -65,11 +65,7 @@ main(int argc, const char **argv)
 		return 1;
 	}
 
-	DWORD file_size_upper_bits = 0;
-	DWORD file_size_lower_bits = GetFileSize(file_handle, &file_size_upper_bits);
-
-	u64 file_size = ((uint64_t) file_size_upper_bits << (sizeof(file_size_lower_bits) * 8)) + (uint64_t) file_size_lower_bits;
-
+	u64 file_size = get_file_size(file_handle);
 	printf("(file size is %lf GB)\n", ((double) file_size / (double) GIGABYTES(1)));
 
 	char *buffer = (char*) VirtualAlloc(0, FILE_BUFFER_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);

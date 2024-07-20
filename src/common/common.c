@@ -31,3 +31,6 @@ typedef double f64;
 
 #include "common/memory.c"
 #include "common/timer.c"
+#include "common/file.c"
+#include "common/hash.c"
+
