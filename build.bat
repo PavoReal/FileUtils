@@ -25,9 +25,11 @@ if not exist "%build_dir%" mkdir "%build_dir%"
 
 pushd %build_dir%
 
-cl %cl_flags% ..\src\read_speed_test.c /link %link_flags% /out:read_speed_test.exe
-cl %cl_flags% ..\src\count_lines.c     /link %link_flags% /out:count_lines.exe
-cl %cl_flags% ..\src\find_line.c       /link %link_flags% /out:find_line.exe
-cl %cl_flags% ..\src\hash_file.c       /link %link_flags% /out:hash_file.exe
+rem cl %cl_flags% ..\src\read_speed_test.c /link %link_flags% /out:read_speed_test.exe
+rem cl %cl_flags% ..\src\count_lines.c     /link %link_flags% /out:count_lines.exe
+rem cl %cl_flags% ..\src\find_line.c       /link %link_flags% /out:find_line.exe
+rem cl %cl_flags% ..\src\hash_file.c       /link %link_flags% /out:hash_file.exe
+rem cl %cl_flags% ..\src\find_dup_files.c  /link %link_flags% /out:find_dup_files.exe
+cl %cl_flags% ..\src\1brc.c            /link %link_flags% /out:1brc.exe
 
 popd

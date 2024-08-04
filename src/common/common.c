@@ -7,7 +7,10 @@
 #define KILOBYTES(v) ((v) * 1024)
 #define MEGABYTES(v) (KILOBYTES(v) * 1024)
 #define GIGABYTES(v) (MEGABYTES(v) * 1024)
- 
+
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
 typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;

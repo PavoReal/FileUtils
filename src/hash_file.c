@@ -14,7 +14,7 @@ print_about(const char **argv)
 }
 
 inline static bool
-handle_block(u8 *start, size_t length, XXH64_state_t *hash_state)
+hash_buffer(u8 *start, size_t length, XXH64_state_t *hash_state)
 {
 	return (XXH64_update(hash_state, start, length) == XXH_ERROR);
 }
@@ -102,7 +102,7 @@ main(int argc, const char **argv)
 			break;
 		}
 
-		if (handle_block(buffer, bytes_read, hash_state))
+		if (hash_buffer(buffer, bytes_read, hash_state))
 		{
 			fprintf(stderr, "(fatal: hashing error)\n");
 			break;
