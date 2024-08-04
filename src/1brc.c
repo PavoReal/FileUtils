@@ -1,8 +1,5 @@
 #include "common/common.c"
 
-#define STB_DS_IMPLEMENTATION
-#include "../deps/stb/stb_ds.h"
-
 #include <time.h>
 #include <float.h>
 #include <math.h>
@@ -247,8 +244,6 @@ main(int argc, const char **argv)
 	{
 		records[i].min = FLT_MAX;
 	}
-
-	stbds_rand_seed(time(NULL));
 
 	XXH64_state_t * const hash_state = XXH64_createState();
 	if (hash_state == NULL)
